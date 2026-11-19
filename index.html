@@ -1,0 +1,1902 @@
+```html
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IndhanLog — Smart Fuel & Mileage Tracker (India)</title>
+  <!-- PWA & GitHub Pages Mobile App Meta Tags -->
+  <link rel="manifest" href="./manifest.json" />
+  <meta name="theme-color" content="#f97316" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="IndhanLog" />
+  <link rel="apple-touch-icon" href="./icon.png" />
+  <!-- Google Fonts: Inter for crisp outdoor readability -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#fff7ed',
+              100: '#ffedd5',
+              500: '#f97316',
+              600: '#ea580c',
+              700: '#c2410c',
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    /* Tabular numerals for aligned odometer, rupee, and mileage readouts */
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+    }
+    /* Hide scrollbars on horizontal chip strips while preserving touch scroll */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    /* Subtle pulse animation for critical fuel alert */
+    @keyframes pulseRing {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.35); }
+      50% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+    }
+    .alert-pulse {
+      animation: pulseRing 2.2s infinite;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased selection:bg-orange-500 selection:text-white overflow-x-hidden">
+
+  <!-- Main Mobile-First App Shell -->
+  <div id="appShell" class="max-w-lg mx-auto min-h-screen flex flex-col bg-slate-50 dark:bg-slate-900 shadow-2xl border-x border-slate-200/80 dark:border-slate-800 relative">
+
+    <!-- Sticky Top Header -->
+    <header class="sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 py-3">
+      <div class="flex items-center justify-between gap-2">
+        <!-- Brand Identity -->
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-white shadow-sm shrink-0">
+            <!-- Fuel Pump SVG Icon -->
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 21h12M5 21V5a2 2 0 012-2h6a2 2 0 012 2v16M9 7h2m-2 4h2m4 0h1a2 2 0 012 2v4a2 2 0 002 2v0a2 2 0 002-2V9.83a2 2 0 00-.59-1.42L18 6" />
+            </svg>
+          </div>
+          <div class="truncate">
+            <div class="flex items-center gap-1.5">
+              <h1 class="text-base font-extrabold tracking-tight text-slate-900 dark:text-white leading-none">IndhanLog</h1>
+              <span class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300">Offline</span>
+            </div>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">Fuel &amp; Mileage Tracker</p>
+          </div>
+        </div>
+
+        <!-- Active Vehicle Switcher & Actions -->
+        <div class="flex items-center gap-1.5 shrink-0">
+          <!-- Compact Dismissible PWA Install Button (Shown when beforeinstallprompt fires) -->
+          <div id="installAppWrapper" class="hidden items-center bg-orange-600 text-white rounded-xl shadow-sm overflow-hidden">
+            <button id="btnInstallApp" type="button" title="Install IndhanLog to Home Screen"
+              class="flex items-center gap-1 pl-2.5 pr-1.5 py-2 text-[11px] font-extrabold hover:bg-orange-700 transition active:scale-95 whitespace-nowrap">
+              <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V3"/>
+              </svg>
+              <span>Install</span>
+            </button>
+            <button id="btnDismissInstall" type="button" aria-label="Dismiss Install Prompt" title="Dismiss"
+              class="px-1.5 py-2 text-[10px] font-bold text-orange-100 hover:text-white hover:bg-orange-700/80 transition">
+              ✕
+            </button>
+          </div>
+
+          <select id="headerVehicleSelect" aria-label="Select Active Vehicle"
+            class="max-w-[125px] sm:max-w-[170px] text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 truncate cursor-pointer">
+          </select>
+
+          <button id="btnThemeToggle" type="button" title="Toggle Sunlight / Night Theme"
+            class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">
+            <svg id="iconSun" class="w-4 h-4 hidden dark:block" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="5"/><path stroke-linecap="round" d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+            </svg>
+            <svg id="iconMoon" class="w-4 h-4 block dark:hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Dynamic Smart Fuel Refill Banner (Shown when vehicle hits Reserve Warning or Refill Needed) -->
+    <div id="globalAlertBanner" class="hidden mx-4 mt-3 p-3.5 rounded-2xl border transition-all">
+      <div class="flex items-start justify-between gap-3">
+        <div class="flex items-start gap-2.5">
+          <div id="alertBannerIcon" class="mt-0.5 shrink-0"></div>
+          <div>
+            <p id="alertBannerTitle" class="text-xs font-extrabold uppercase tracking-wide"></p>
+            <p id="alertBannerText" class="text-xs mt-0.5 leading-relaxed"></p>
+          </div>
+        </div>
+        <button type="button" onclick="switchTab('fuel')"
+          class="shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm active:scale-95 transition">
+          Refill Now
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Scrollable Viewport -->
+    <main class="flex-1 px-4 pt-3 pb-28 space-y-4">
+
+      <!-- ============================================================== -->
+      <!-- VIEW 1: DASHBOARD                                              -->
+      <!-- ============================================================== -->
+      <section id="view-dashboard" class="space-y-4">
+
+        <!-- Active Vehicle Identity & Live Fuel Gauge Card -->
+        <div class="bg-white dark:bg-slate-800/90 rounded-3xl p-4 sm:p-5 shadow-sm border border-slate-200/80 dark:border-slate-700/80">
+          <div class="flex items-start justify-between gap-2 mb-3">
+            <div>
+              <div class="flex items-center gap-2 flex-wrap">
+                <span id="dashVehicleBadge" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300"></span>
+                <span id="dashRegPlate" class="text-xs font-mono font-bold tracking-wider px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600"></span>
+              </div>
+              <h2 id="dashVehicleName" class="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white mt-1.5"></h2>
+              <p class="text-xs text-slate-500 dark:text-slate-400 tabular-nums mt-0.5">
+                Odometer: <strong id="dashOdometer" class="text-slate-800 dark:text-slate-200">0 km</strong> • Tank: <span id="dashTankCap">0 L</span> (<span id="dashFuelType">Petrol</span>)
+              </p>
+            </div>
+            <!-- Status Pill: Safe / Reserve Warning / Refill Needed -->
+            <span id="fuelStatusPill" class="px-3 py-1 rounded-full text-xs font-extrabold tracking-tight shrink-0">
+              Safe
+            </span>
+          </div>
+
+          <!-- Fuel Level Progress Bar -->
+          <div class="mt-4">
+            <div class="flex justify-between items-end mb-1.5">
+              <div>
+                <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Est. Remaining Range</span>
+                <div class="flex items-baseline gap-1.5">
+                  <span id="dashRangeKm" class="text-3xl sm:text-4xl font-extrabold tabular-nums tracking-tight text-slate-900 dark:text-white">0</span>
+                  <span class="text-sm font-bold text-slate-500 dark:text-slate-400">km left</span>
+                </div>
+              </div>
+              <div class="text-right">
+                <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Est. Fuel in Tank</span>
+                <div class="text-lg font-extrabold tabular-nums text-slate-800 dark:text-slate-100">
+                  <span id="dashFuelLeft">0.0</span> <span class="text-xs font-semibold text-slate-500">/ <span id="dashTankTotal">0</span> <span id="dashFuelUnit">L</span></span>
+                </div>
+              </div>
+            </div>
+
+            <div class="w-full h-4 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden p-0.5 border border-slate-200/70 dark:border-slate-600">
+              <div id="dashFuelBar" class="h-full rounded-full transition-all duration-500 bg-emerald-500" style="width: 65%"></div>
+            </div>
+
+            <div class="flex items-center justify-between text-xs text-slate-600 dark:text-slate-300 mt-2.5 pt-2.5 border-t border-slate-100 dark:border-slate-700/70 tabular-nums">
+              <span>Since last fill: <strong id="dashDistSinceFill" class="text-slate-900 dark:text-white">0 km</strong></span>
+              <span>Last bunk: <strong id="dashLastBunk" class="text-slate-900 dark:text-white">—</strong></span>
+            </div>
+          </div>
+
+          <!-- Quick Action Strip -->
+          <div class="grid grid-cols-3 gap-2 mt-4">
+            <button type="button" onclick="switchTab('ride')"
+              class="flex flex-col items-center justify-center gap-1 py-2.5 px-2 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700/70 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 text-xs font-bold transition active:scale-95">
+              <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 2a7 7 0 017 7c0 5.25-7 13-7 13S5 14.25 5 9a7 7 0 017-7zm0 9.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z"/>
+              </svg>
+              <span>GPS Ride</span>
+            </button>
+            <button type="button" onclick="simulateRideDistance(15)"
+              class="flex flex-col items-center justify-center gap-1 py-2.5 px-2 rounded-2xl bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/50 dark:hover:bg-amber-900/60 text-amber-900 dark:text-amber-200 border border-amber-200/80 dark:border-amber-800/60 text-xs font-bold transition active:scale-95">
+              <svg class="w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+              </svg>
+              <span>+15 km Test</span>
+            </button>
+            <button type="button" onclick="switchTab('fuel')"
+              class="flex flex-col items-center justify-center gap-1 py-2.5 px-2 rounded-2xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold shadow-sm transition active:scale-95">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+              </svg>
+              <span>Add Fuel</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 4-Card Mileage & Cost Analytics Grid -->
+        <div class="grid grid-cols-2 gap-3">
+          <div class="bg-white dark:bg-slate-800/90 rounded-2xl p-3.5 border border-slate-200/80 dark:border-slate-700/80 shadow-sm">
+            <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Avg Mileage</span>
+            <div class="flex items-baseline gap-1 mt-1">
+              <span id="statAvgMileage" class="text-2xl font-extrabold tabular-nums text-emerald-600 dark:text-emerald-400">0.0</span>
+              <span id="statMileageUnit" class="text-xs font-bold text-slate-500 dark:text-slate-400">km/l</span>
+            </div>
+            <p id="statLastMileage" class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 tabular-nums">Last tank: —</p>
+          </div>
+
+          <div class="bg-white dark:bg-slate-800/90 rounded-2xl p-3.5 border border-slate-200/80 dark:border-slate-700/80 shadow-sm">
+            <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Running Cost</span>
+            <div class="flex items-baseline gap-1 mt-1">
+              <span id="statCostPerKm" class="text-2xl font-extrabold tabular-nums text-slate-900 dark:text-white">₹0.00</span>
+              <span class="text-xs font-bold text-slate-500 dark:text-slate-400">/km</span>
+            </div>
+            <p id="statAvgFuelRate" class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 tabular-nums">Avg rate: —</p>
+          </div>
+
+          <div class="bg-white dark:bg-slate-800/90 rounded-2xl p-3.5 border border-slate-200/80 dark:border-slate-700/80 shadow-sm">
+            <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Total Fuel Spent</span>
+            <div class="flex items-baseline gap-1 mt-1">
+              <span id="statTotalSpent" class="text-2xl font-extrabold tabular-nums text-slate-900 dark:text-white">₹0</span>
+            </div>
+            <p id="statTotalLiters" class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 tabular-nums">0.0 L total</p>
+          </div>
+
+          <div class="bg-white dark:bg-slate-800/90 rounded-2xl p-3.5 border border-slate-200/80 dark:border-slate-700/80 shadow-sm">
+            <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Distance Tracked</span>
+            <div class="flex items-baseline gap-1 mt-1">
+              <span id="statTotalDist" class="text-2xl font-extrabold tabular-nums text-slate-900 dark:text-white">0</span>
+              <span class="text-xs font-bold text-slate-500 dark:text-slate-400">km</span>
+            </div>
+            <p id="statRefuelCount" class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 tabular-nums">0 refills logged</p>
+          </div>
+        </div>
+
+        <!-- Smart Refill Prediction & Push Notification Card -->
+        <div class="bg-white dark:bg-slate-800/90 rounded-3xl p-4 border border-slate-200/80 dark:border-slate-700/80 shadow-sm space-y-3">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded-xl bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                </svg>
+              </div>
+              <div>
+                <h3 class="text-sm font-bold text-slate-900 dark:text-white">Smart Refill Alerts</h3>
+                <p id="notifPermissionStatus" class="text-[11px] text-slate-500 dark:text-slate-400">Browser push alerts inactive</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <button id="btnTestAlert" type="button"
+                class="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 transition">
+                Test
+              </button>
+              <button id="btnEnableNotifs" type="button"
+                class="px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition">
+                Enable Fuel Alerts
+              </button>
+            </div>
+          </div>
+
+          <!-- Threshold Configurator -->
+          <div class="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100 dark:border-slate-700/70">
+            <div>
+              <label for="inputRangeThreshold" class="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                Alert Below Range (km)
+              </label>
+              <div class="relative">
+                <input id="inputRangeThreshold" type="number" min="5" max="300" step="5"
+                  class="w-full px-3 py-2 text-sm font-bold tabular-nums rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+                <span class="absolute right-3 top-2.5 text-xs font-semibold text-slate-400">km</span>
+              </div>
+            </div>
+            <div>
+              <label for="inputFuelThreshold" class="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                Alert Below Fuel (L)
+              </label>
+              <div class="relative">
+                <input id="inputFuelThreshold" type="number" min="0.2" max="20" step="0.1"
+                  class="w-full px-3 py-2 text-sm font-bold tabular-nums rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+                <span class="absolute right-3 top-2.5 text-xs font-semibold text-slate-400">L</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Analytics Charts Card -->
+        <div class="bg-white dark:bg-slate-800/90 rounded-3xl p-4 border border-slate-200/80 dark:border-slate-700/80 shadow-sm space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900 dark:text-white">Mileage &amp; Spend Insights</h3>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400">Tank-to-tank efficiency &amp; bunk expenditure</p>
+            </div>
+            <div class="flex rounded-xl bg-slate-100 dark:bg-slate-900 p-0.5 border border-slate-200 dark:border-slate-700">
+              <button type="button" id="chartTabMileage" onclick="setChartMode('mileage')"
+                class="px-2.5 py-1 rounded-lg text-xs font-bold bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm transition">
+                Mileage
+              </button>
+              <button type="button" id="chartTabSpend" onclick="setChartMode('spend')"
+                class="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-400 transition">
+                Bunk Spend
+              </button>
+            </div>
+          </div>
+
+          <!-- Interactive SVG Chart Container -->
+          <div id="chartContainer" class="w-full"></div>
+        </div>
+
+        <!-- Recent Activity Preview -->
+        <div class="bg-white dark:bg-slate-800/90 rounded-3xl p-4 border border-slate-200/80 dark:border-slate-700/80 shadow-sm">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-bold text-slate-900 dark:text-white">Recent Refuels</h3>
+            <button type="button" onclick="switchTab('garage')" class="text-xs font-bold text-orange-600 dark:text-orange-400 hover:underline">
+              View All &rarr;
+            </button>
+          </div>
+          <div id="dashRecentList" class="space-y-2.5"></div>
+        </div>
+      </section>
+
+      <!-- ============================================================== -->
+      <!-- VIEW 2: DUAL DISTANCE RECORDING (GPS LIVE + MANUAL MODE)       -->
+      <!-- ============================================================== -->
+      <section id="view-ride" class="hidden space-y-4">
+
+        <!-- Live GPS Trip Computer -->
+        <div class="bg-white dark:bg-slate-800/90 rounded-3xl p-4 sm:p-5 border border-slate-200/80 dark:border-slate-700/80 shadow-sm space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <span class="text-[11px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">Online GPS Mode</span>
+              <h2 class="text-lg font-extrabold text-slate-900 dark:text-white">Live GPS Trip Tracker</h2>
+            </div>
+            <span id="gpsStatusBadge" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+              <span id="gpsStatusDot" class="w-2 h-2 rounded-full bg-slate-400"></span>
+              <span id="gpsStatusText">Standby</span>
+            </span>
+          </div>
+
+          <!-- Big Digital Readout -->
+          <div class="bg-slate-900 dark:bg-slate-950 text-white rounded-2xl p-4 border border-slate-800">
+            <div class="text-center pb-3 border-b border-slate-800">
+              <span class="text-[11px] font-semibold uppercase tracking-widest text-slate-400">Trip Distance</span>
+              <div class="flex items-baseline justify-center gap-1.5 mt-1">
+                <span id="gpsDistanceDisplay" class="text-5xl font-extrabold tabular-nums tracking-tight text-white">0.00</span>
+                <span class="text-base font-bold text-orange-400">km</span>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-2 pt-3 text-center tabular-nums">
+              <div>
+                <span class="block text-[10px] uppercase tracking-wider text-slate-400">Speed</span>
+                <span id="gpsSpeedDisplay" class="text-base font-bold text-white">0.0</span>
+                <span class="text-[10px] text-slate-400">km/h</span>
+              </div>
+              <div class="border-x border-slate-800">
+                <span class="block text-[10px] uppercase tracking-wider text-slate-400">Avg Speed</span>
+                <span id="gpsAvgSpeedDisplay" class="text-base font-bold text-white">0.0</span>
+                <span class="text-[10px] text-slate-400">km/h</span>
+              </div>
+              <div>
+                <span class="block text-[10px] uppercase tracking-wider text-slate-400">Duration</span>
+                <span id="gpsDurationDisplay" class="text-base font-bold text-emerald-400">00:00:00</span>
+              </div>
+            </div>
+
+            <!-- Live Breadcrumb Route Trail Canvas -->
+            <div class="mt-3 pt-2 border-t border-slate-800/80">
+              <canvas id="gpsRouteCanvas" class="w-full h-24 rounded-xl bg-slate-950/80 block"></canvas>
+            </div>
+          </div>
+
+          <!-- Primary GPS Action Buttons -->
+          <div class="grid grid-cols-2 gap-2.5">
+            <button id="btnGpsStartPause" type="button" onclick="toggleGpsTracking()"
+              class="py-3.5 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm shadow-sm flex items-center justify-center gap-2 transition active:scale-95">
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+              <span id="btnGpsStartLabel">Start GPS Ride</span>
+            </button>
+            <button id="btnGpsSave" type="button" onclick="saveGpsRideToVehicle()"
+              class="py-3.5 px-4 rounded-2xl bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-sm shadow-sm flex items-center justify-center gap-2 transition active:scale-95">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+              </svg>
+              <span>Save to Tank</span>
+            </button>
+          </div>
+
+          <!-- Desktop / Indoor Testing & Reset Row -->
+          <div class="flex items-center justify-between gap-2 pt-1">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <button type="button" onclick="addSimulatedGpsChunk(5)"
+                class="px-3 py-2 rounded-xl text-xs font-bold bg-amber-100 hover:bg-amber-200 dark:bg-amber-950/70 dark:hover:bg-amber-900 text-amber-900 dark:text-amber-200 transition">
+                +5 km Sim
+              </button>
+              <button type="button" onclick="addSimulatedGpsChunk(15)"
+                class="px-3 py-2 rounded-xl text-xs font-bold bg-amber-100 hover:bg-amber-200 dark:bg-amber-950/70 dark:hover:bg-amber-900 text-amber-900 dark:text-amber-200 transition">
+                Simulate Ride (+15 km)
+              </button>
+            </div>
+            <button type="button" onclick="confirmResetGps()"
+              class="px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition">
+              Reset
+            </button>
+          </div>
+        </div>
+
+        <!-- Manual Odometer / Trip Meter Entry Card -->
+        <div class="bg-white dark:bg-slate-800/90 rounded-3xl p-4 sm:p-5 border border-slate-200/80 dark:border-slate-700/80 shadow-sm space-y-3.5">
+          <div>
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Offline / Manual Mode</span>
+            <h3 class="text-base font-extrabold text-slate-900 dark:text-white">Log Odometer or Trip Distance</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5 tabular-nums">
+              Current Odometer: <strong id="manualRefOdo" class="text-slate-800 dark:text-slate-200">0 km</strong>
+            </p>
+          </div>
+
+          <div class="grid grid-cols-2 rounded-xl bg-slate-100 dark:bg-slate-900 p-1 border border-slate-200 dark:border-slate-700">
+            <button type="button" id="manualModeOdoBtn" onclick="setManualEntryMode('odometer')"
+              class="py-2 rounded-lg text-xs font-bold bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm transition">
+              Exact Odometer (km)
+            </button>
+            <button type="button" id="manualModeTripBtn" onclick="setManualEntryMode('trip')"
+              class="py-2 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-400 transition">
+              Trip Distance (+km)
+            </button>
+          </div>
+
+          <form id="manualRideForm" onsubmit="handleManualRideSubmit(event)" class="space-y-3">
+            <div>
+              <label id="manualDistanceLabel" for="manualDistanceInput" class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                New Odometer Reading (km)
+              </label>
+              <input id="manualDistanceInput" type="number" step="0.1" required placeholder="e.g. 14560"
+                class="w-full px-3.5 py-3 text-base font-extrabold tabular-nums rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+              <p id="manualCalculatedPreview" class="text-xs font-semibold text-emerald-600 dark:text-emerald-400 mt-1 tabular-nums"></p>
+            </div>
+
+            <div>
+              <label for="manualRideNote" class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Ride Note (Optional)
+              </label>
+              <input id="manualRideNote" type="text" placeholder="e.g. Office commute, Kollam to Trivandrum highway"
+                class="w-full px-3.5 py-2.5 text-sm rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+            </div>
+
+            <button type="submit"
+              class="w-full py-3.5 rounded-2xl bg-slate-900 hover:bg-slate-800 dark:bg-orange-600 dark:hover:bg-orange-700 text-white font-extrabold text-sm shadow-sm transition active:scale-95">
+              Update Vehicle Distance
+            </button>
+          </form>
+        </div>
+
+        <!-- Recorded Trips List -->
+        <div class="bg-white dark:bg-slate-800/90 rounded-3xl p-4 border border-slate-200/80 dark:border-slate-700/80 shadow-sm">
+          <h3 class="text-sm font-bold text-slate-900 dark:text-white mb-2.5">Recent Recorded Trips</h3>
+          <div id="rideHistoryList" class="space-y-2"></div>
+        </div>
+      </section>
+
+      <!-- ============================================================== -->
+      <!-- VIEW 3: INDIAN FUEL REFILLING LOG                              -->
+      <!-- ============================================================== -->
+      <section id="view-fuel" class="hidden space-y-4">
+        <form id="fuelEntryForm" onsubmit="handleFuelFormSubmit(event)"
+          class="bg-white dark:bg-slate-800/90 rounded-3xl p-4 sm:p-5 border border-slate-200/80 dark:border-slate-700/80 shadow-sm space-y-4">
+
+          <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-700/80 pb-3">
+            <div>
+              <span class="text-[11px] font-bold uppercase tracking-wider text-orange-600 dark:text-orange-400">Petrol Bunk Log</span>
+              <h2 class="text-lg font-extrabold text-slate-900 dark:text-white">Record Fuel Refill</h2>
+            </div>
+            <span id="fuelFormVehiclePill" class="px-2.5 py-1 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200"></span>
+          </div>
+
+          <!-- Indian Fuel Bunk Brand Selector -->
+          <div>
+            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">Fuel Bunk Brand</label>
+            <div id="bunkBrandGrid" class="grid grid-cols-3 gap-2">
+              <!-- Populated via JS -->
+            </div>
+          </div>
+
+          <!-- Date & Fuel Type -->
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label for="fuelDateInput" class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Date</label>
+              <input id="fuelDateInput" type="date" required
+                class="w-full px-3 py-2.5 text-sm font-semibold rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+            </div>
+            <div>
+              <label for="fuelTypeSelect" class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Fuel Grade</label>
+              <select id="fuelTypeSelect"
+                class="w-full px-3 py-2.5 text-sm font-semibold rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500">
+                <option value="Petrol">Petrol (Regular)</option>
+                <option value="XP95 / Power Petrol">XP95 / Power Petrol</option>
+                <option value="Diesel">Diesel</option>
+                <option value="CNG">CNG (kg)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Quick Indian Rupee Chips -->
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="text-xs font-bold text-slate-700 dark:text-slate-300">Quick Amount (₹)</label>
+              <span class="text-[11px] text-slate-500 dark:text-slate-400">Auto-calculates Liters</span>
+            </div>
+            <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
+              <button type="button" onclick="applyQuickRupees(100)" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300 border border-orange-200/80 dark:border-orange-800/60 shrink-0 tabular-nums">₹100</button>
+              <button type="button" onclick="applyQuickRupees(200)" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300 border border-orange-200/80 dark:border-orange-800/60 shrink-0 tabular-nums">₹200</button>
+              <button type="button" onclick="applyQuickRupees(500)" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300 border border-orange-200/80 dark:border-orange-800/60 shrink-0 tabular-nums">₹500</button>
+              <button type="button" onclick="applyQuickRupees(1000)" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300 border border-orange-200/80 dark:border-orange-800/60 shrink-0 tabular-nums">₹1,000</button>
+              <button type="button" onclick="applyQuickRupees(2000)" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300 border border-orange-200/80 dark:border-orange-800/60 shrink-0 tabular-nums">₹2,000</button>
+            </div>
+          </div>
+
+          <!-- Two-Way Calculator: Amount (INR), Rate (INR/L), Quantity (Liters) -->
+          <div class="grid grid-cols-3 gap-2.5 bg-slate-50 dark:bg-slate-900/80 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-700">
+            <div>
+              <label for="fuelAmountInput" class="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">Paid (₹)</label>
+              <input id="fuelAmountInput" type="number" step="0.01" min="1" required placeholder="500"
+                class="w-full px-2.5 py-2.5 text-sm font-extrabold tabular-nums rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+            </div>
+            <div>
+              <label for="fuelRateInput" class="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">Rate (₹/L)</label>
+              <input id="fuelRateInput" type="number" step="0.01" min="1" required placeholder="105.60"
+                class="w-full px-2.5 py-2.5 text-sm font-extrabold tabular-nums rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+            </div>
+            <div>
+              <label for="fuelLitersInput" class="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">Qty (L)</label>
+              <input id="fuelLitersInput" type="number" step="0.001" min="0.05" required placeholder="4.73"
+                class="w-full px-2.5 py-2.5 text-sm font-extrabold tabular-nums rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+            </div>
+          </div>
+
+          <!-- Fill Mode Toggle: Full Tank vs Partial Fill -->
+          <div>
+            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Fill Type</label>
+            <div class="grid grid-cols-2 gap-2">
+              <button type="button" id="btnFillFull" onclick="setFillMode(true)"
+                class="p-3 rounded-2xl border-2 border-emerald-600 bg-emerald-50 dark:bg-emerald-950/50 text-left transition">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-extrabold text-emerald-900 dark:text-emerald-200">Full Tank</span>
+                  <span class="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px]">✓</span>
+                </div>
+                <p class="text-[10px] text-emerald-700 dark:text-emerald-300 mt-0.5">Auto cut-off (Exact km/l)</p>
+              </button>
+              <button type="button" id="btnFillPartial" onclick="setFillMode(false)"
+                class="p-3 rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-left transition">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-extrabold text-slate-700 dark:text-slate-200">Partial Fill</span>
+                  <span class="w-4 h-4 rounded-full border border-slate-300 dark:border-slate-600"></span>
+                </div>
+                <p class="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Everyday top-up</p>
+              </button>
+            </div>
+          </div>
+
+          <!-- Odometer Reading -->
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label for="fuelOdometerInput" class="text-xs font-bold text-slate-700 dark:text-slate-300">Odometer Reading (km)</label>
+              <span class="text-[11px] text-slate-500 dark:text-slate-400 tabular-nums">Prev: <strong id="fuelPrevOdoDisplay">0 km</strong></span>
+            </div>
+            <input id="fuelOdometerInput" type="number" step="0.1" required
+              class="w-full px-3.5 py-3 text-base font-extrabold tabular-nums rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+            <p id="fuelOdoDeltaInfo" class="text-xs font-semibold text-blue-600 dark:text-blue-400 mt-1 tabular-nums"></p>
+          </div>
+
+          <!-- Notes & Quick Tags -->
+          <div>
+            <label for="fuelNotesInput" class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Notes &amp; Riding Conditions</label>
+            <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-2">
+              <button type="button" onclick="appendFuelNoteTag('City traffic')" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 shrink-0">+ City traffic</button>
+              <button type="button" onclick="appendFuelNoteTag('Highway ride')" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 shrink-0">+ Highway ride</button>
+              <button type="button" onclick="appendFuelNoteTag('Air pressure checked')" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 shrink-0">+ Air pressure checked</button>
+              <button type="button" onclick="appendFuelNoteTag('AC on')" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 shrink-0">+ AC on</button>
+            </div>
+            <input id="fuelNotesInput" type="text" placeholder="Optional notes (e.g. Morning refill at NH-66 bunk)"
+              class="w-full px-3.5 py-2.5 text-sm rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          </div>
+
+          <button type="submit"
+            class="w-full py-4 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white font-extrabold text-sm shadow-md transition active:scale-95">
+            Save Refill Entry
+          </button>
+        </form>
+      </section>
+
+      <!-- ============================================================== -->
+      <!-- VIEW 4: HISTORY, MULTI-VEHICLE GARAGE & DATA BACKUP            -->
+      <!-- ============================================================== -->
+      <section id="view-garage" class="hidden space-y-4">
+
+        <!-- Multi-Vehicle Garage Section -->
+        <div class="bg-white dark:bg-slate-800/90 rounded-3xl p-4 border border-slate-200/80 dark:border-slate-700/80 shadow-sm space-y-3">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-base font-extrabold text-slate-900 dark:text-white">My Garage</h2>
+              <p class="text-xs text-slate-500 dark:text-slate-400">Scooter, Bike &amp; Car profiles</p>
+            </div>
+            <button type="button" onclick="openVehicleModal()"
+              class="px-3.5 py-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-extrabold shadow-sm flex items-center gap-1 transition active:scale-95">
+              <span>+ Add Vehicle</span>
+            </button>
+          </div>
+
+          <div id="garageVehicleList" class="space-y-2.5"></div>
+        </div>
+
+        <!-- Full Refuel History Ledger -->
+        <div class="bg-white dark:bg-slate-800/90 rounded-3xl p-4 border border-slate-200/80 dark:border-slate-700/80 shadow-sm space-y-3">
+          <div class="flex items-center justify-between gap-2 flex-wrap">
+            <div>
+              <h3 class="text-base font-extrabold text-slate-900 dark:text-white">Fuel Log History</h3>
+              <p id="historyVehicleSubtitle" class="text-xs text-slate-500 dark:text-slate-400"></p>
+            </div>
+            <select id="historyFilterSelect" onchange="renderHistoryLedger()"
+              class="text-xs font-bold bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl px-2.5 py-1.5">
+              <option value="all">All Refills</option>
+              <option value="full">Full Tank Only</option>
+              <option value="partial">Partial Fills</option>
+            </select>
+          </div>
+
+          <div id="fullHistoryList" class="space-y-2.5"></div>
+        </div>
+
+        <!-- Data Export, Backup & Sample Reset -->
+        <div class="bg-white dark:bg-slate-800/90 rounded-3xl p-4 border border-slate-200/80 dark:border-slate-700/80 shadow-sm space-y-3">
+          <div>
+            <h3 class="text-base font-extrabold text-slate-900 dark:text-white">Offline Storage &amp; Export</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">All records are saved locally on your phone for offline petrol bunk access.</p>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2.5">
+            <button type="button" onclick="exportLogsToCSV()"
+              class="py-3 px-3 rounded-2xl bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/70 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800 text-xs font-bold flex items-center justify-center gap-1.5 transition">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+              <span>Export CSV (Excel)</span>
+            </button>
+
+            <button type="button" onclick="exportBackupJSON()"
+              class="py-3 px-3 rounded-2xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/70 text-blue-800 dark:text-blue-200 border border-blue-200 dark:border-blue-800 text-xs font-bold flex items-center justify-center gap-1.5 transition">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+              </svg>
+              <span>Backup JSON</span>
+            </button>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2.5">
+            <label class="py-3 px-3 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700/70 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+              </svg>
+              <span>Restore JSON</span>
+              <input type="file" accept=".json" onchange="importBackupJSON(event)" class="hidden" />
+            </label>
+
+            <button type="button" onclick="confirmLoadSampleData()"
+              class="py-3 px-3 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700/70 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 transition">
+              <span>Load Demo Data</span>
+            </button>
+          </div>
+
+          <button type="button" onclick="confirmClearAllData()"
+            class="w-full py-3 px-4 rounded-2xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/70 text-xs font-extrabold transition">
+            Clear Sample Data / Start Fresh
+          </button>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Fixed Mobile Bottom Navigation Bar -->
+    <nav aria-label="Primary Navigation"
+      class="fixed bottom-0 left-0 right-0 z-30 max-w-lg mx-auto bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-2 py-1.5">
+      <div class="grid grid-cols-4 gap-1">
+        <button type="button" data-nav="dashboard" onclick="switchTab('dashboard')"
+          class="nav-btn flex flex-col items-center justify-center py-2 px-1 rounded-2xl text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/60 font-bold transition">
+          <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+          </svg>
+          <span class="text-[11px]">Dashboard</span>
+        </button>
+
+        <button type="button" data-nav="ride" onclick="switchTab('ride')"
+          class="nav-btn flex flex-col items-center justify-center py-2 px-1 rounded-2xl text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-semibold transition">
+          <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
+          </svg>
+          <span class="text-[11px]">GPS Ride</span>
+        </button>
+
+        <button type="button" data-nav="fuel" onclick="switchTab('fuel')"
+          class="nav-btn flex flex-col items-center justify-center py-2 px-1 rounded-2xl text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-semibold transition">
+          <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <span class="text-[11px]">Add Fuel</span>
+        </button>
+
+        <button type="button" data-nav="garage" onclick="switchTab('garage')"
+          class="nav-btn flex flex-col items-center justify-center py-2 px-1 rounded-2xl text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-semibold transition">
+          <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+          </svg>
+          <span class="text-[11px]">Garage</span>
+        </button>
+      </div>
+    </nav>
+  </div>
+
+  <!-- ================================================================== -->
+  <!-- MODAL: ADD / EDIT VEHICLE                                          -->
+  <!-- ================================================================== -->
+  <div id="vehicleModal" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="w-full max-w-md bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl p-5 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 id="vehicleModalTitle" class="text-lg font-extrabold text-slate-900 dark:text-white">Add Vehicle</h3>
+        <button type="button" onclick="closeVehicleModal()" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800">✕</button>
+      </div>
+
+      <form id="vehicleForm" onsubmit="handleVehicleSave(event)" class="space-y-3">
+        <input type="hidden" id="vehEditId" />
+
+        <!-- Vehicle Category -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Vehicle Category</label>
+          <div class="grid grid-cols-3 gap-2">
+            <button type="button" data-vtype="Scooter" onclick="selectVehicleType('Scooter')"
+              class="vtype-btn py-2.5 px-2 rounded-2xl border-2 border-orange-500 bg-orange-50 dark:bg-orange-950/50 text-xs font-extrabold text-orange-800 dark:text-orange-200">
+              🛵 Scooter
+            </button>
+            <button type="button" data-vtype="Bike" onclick="selectVehicleType('Bike')"
+              class="vtype-btn py-2.5 px-2 rounded-2xl border-2 border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300">
+              🏍️ Bike
+            </button>
+            <button type="button" data-vtype="Car" onclick="selectVehicleType('Car')"
+              class="vtype-btn py-2.5 px-2 rounded-2xl border-2 border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300">
+              🚗 Car
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label for="vehNameInput" class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Vehicle Name / Model</label>
+          <input id="vehNameInput" type="text" required placeholder="e.g. Honda Activa 6G / RE Classic 350"
+            class="w-full px-3.5 py-2.5 text-sm font-semibold rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="vehRegInput" class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Registration No.</label>
+            <input id="vehRegInput" type="text" required placeholder="KL-02-AB-1234"
+              class="w-full px-3.5 py-2.5 text-sm font-mono font-bold uppercase rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          </div>
+          <div>
+            <label for="vehFuelInput" class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Fuel Type</label>
+            <select id="vehFuelInput"
+              class="w-full px-3 py-2.5 text-sm font-semibold rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500">
+              <option value="Petrol">Petrol</option>
+              <option value="XP95 / Power Petrol">XP95 / Power Petrol</option>
+              <option value="Diesel">Diesel</option>
+              <option value="CNG">CNG</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="vehTankInput" class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Tank Capacity (L)</label>
+            <input id="vehTankInput" type="number" step="0.1" min="1" max="150" required placeholder="5.3"
+              class="w-full px-3.5 py-2.5 text-sm font-bold tabular-nums rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          </div>
+          <div>
+            <label for="vehOdoInput" class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Current Odometer (km)</label>
+            <input id="vehOdoInput" type="number" step="0.1" min="0" required placeholder="12500"
+              class="w-full px-3.5 py-2.5 text-sm font-bold tabular-nums rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          </div>
+        </div>
+
+        <button type="submit"
+          class="w-full py-3.5 rounded-2xl bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-sm shadow-md transition active:scale-95">
+          Save Vehicle
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================================================================== -->
+  <!-- MODAL: CUSTOM CONFIRMATION DIALOG (Replaces window.confirm)        -->
+  <!-- ================================================================== -->
+  <div id="confirmModal" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+      <h3 id="confirmModalTitle" class="text-base font-extrabold text-slate-900 dark:text-white">Confirm Action</h3>
+      <p id="confirmModalMessage" class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed"></p>
+      <div class="grid grid-cols-2 gap-2.5 pt-1">
+        <button type="button" onclick="closeConfirmModal()"
+          class="py-2.5 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold">
+          Cancel
+        </button>
+        <button id="confirmModalActionBtn" type="button"
+          class="py-2.5 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold">
+          Confirm
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================== -->
+  <!-- TOAST NOTIFICATION CONTAINER (Replaces window.alert)               -->
+  <!-- ================================================================== -->
+  <div id="toastContainer" class="fixed top-16 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-sm space-y-2 pointer-events-none"></div>
+
+  <!-- ================================================================== -->
+  <!-- APPLICATION LOGIC                                                  -->
+  <!-- ================================================================== -->
+  <script>
+    'use strict';
+
+    // Storage key for offline-first persistence
+    const STORAGE_KEY = 'indhanlog_india_v1';
+
+    // Indian Petrol Bunk Brands with distinct visual styling
+    const BUNK_BRANDS = [
+      { id: 'IndianOil', label: 'IndianOil', short: 'IOCL', badgeBg: 'bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300', barColor: '#f97316' },
+      { id: 'Bharat Petroleum', label: 'BPCL', short: 'BPCL', badgeBg: 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300', barColor: '#2563eb' },
+      { id: 'Hindustan Petroleum', label: 'HPCL', short: 'HPCL', badgeBg: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300', barColor: '#4f46e5' },
+      { id: 'Jio-bp', label: 'Jio-bp', short: 'Jio-bp', badgeBg: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300', barColor: '#059669' },
+      { id: 'Nayara Energy', label: 'Nayara', short: 'Nayara', badgeBg: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300', barColor: '#d97706' },
+      { id: 'Shell', label: 'Shell', short: 'Shell', badgeBg: 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300', barColor: '#e11d48' },
+      { id: 'Other', label: 'Other Bunk', short: 'Other', badgeBg: 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300', barColor: '#64748b' }
+    ];
+
+    // Default Indian fuel rates (INR/L)
+    const DEFAULT_FUEL_RATES = {
+      'Petrol': 105.60,
+      'XP95 / Power Petrol': 112.40,
+      'Diesel': 94.50,
+      'CNG': 86.00
+    };
+
+    // Global Application State
+    let appState = {
+      vehicles: [],
+      refuels: [],
+      trips: [],
+      activeVehicleId: null,
+      theme: 'light',
+      chartMode: 'mileage', // 'mileage' | 'spend'
+      lastNotifiedKey: ''
+    };
+
+    // Live GPS Tracking Runtime State
+    let gpsState = {
+      isTracking: false,
+      watchId: null,
+      distanceKm: 0,
+      currentSpeedKmh: 0,
+      elapsedSeconds: 0,
+      timerInterval: null,
+      lastCoords: null,
+      pathPoints: [] // Array of { lat, lng } for live breadcrumb visualization
+    };
+
+    // Form UI temporary state
+    let selectedBunkBrand = 'IndianOil';
+    let isFullTankMode = true;
+    let manualEntryMode = 'odometer'; // 'odometer' | 'trip'
+    let modalVehicleType = 'Scooter';
+    let pendingConfirmCallback = null;
+
+    // =========================================================================
+    // 1. REALISTIC INDIAN SAMPLE DATA GENERATOR
+    // =========================================================================
+    function createIndianSampleData() {
+      const today = new Date();
+      const daysAgo = (n) => {
+        const d = new Date(today);
+        d.setDate(d.getDate() - n);
+        return d.toISOString().split('T')[0];
+      };
+
+      const vActiva = {
+        id: 'veh_activa_6g',
+        type: 'Scooter',
+        name: 'Honda Activa 6G',
+        regNumber: 'KL-02-BM-4821',
+        fuelType: 'Petrol',
+        tankCapacity: 5.3,
+        currentOdometer: 14412,
+        lowRangeThreshold: 45,
+        lowFuelThreshold: 1.1
+      };
+
+      const vClassic = {
+        id: 'veh_re_350',
+        type: 'Bike',
+        name: 'Royal Enfield Classic 350',
+        regNumber: 'KL-02-AK-1947',
+        fuelType: 'XP95 / Power Petrol',
+        tankCapacity: 13.0,
+        currentOdometer: 22640,
+        lowRangeThreshold: 60,
+        lowFuelThreshold: 1.8
+      };
+
+      const vSwift = {
+        id: 'veh_swift_zxi',
+        type: 'Car',
+        name: 'Maruti Swift ZXi',
+        regNumber: 'KL-02-CA-7799',
+        fuelType: 'Petrol',
+        tankCapacity: 37.0,
+        currentOdometer: 41890,
+        lowRangeThreshold: 80,
+        lowFuelThreshold: 4.5
+      };
+
+      const refuels = [
+        // Activa 6G Logs (Notice recent distance puts it near reserve warning so alerts shine!)
+        {
+          id: 'ref_101', vehicleId: vActiva.id, date: daysAgo(42), bunk: 'IndianOil',
+          fuelType: 'Petrol', amount: 460.00, rate: 105.50, liters: 4.36,
+          isFullTank: true, odometer: 13620, notes: 'Morning auto cut-off fill'
+        },
+        {
+          id: 'ref_102', vehicleId: vActiva.id, date: daysAgo(31), bunk: 'Bharat Petroleum',
+          fuelType: 'Petrol', amount: 445.00, rate: 105.60, liters: 4.21,
+          isFullTank: true, odometer: 13818, notes: 'City commute & market errands'
+        },
+        {
+          id: 'ref_103', vehicleId: vActiva.id, date: daysAgo(19), bunk: 'Hindustan Petroleum',
+          fuelType: 'Petrol', amount: 200.00, rate: 105.60, liters: 1.89,
+          isFullTank: false, odometer: 13910, notes: 'Quick ₹200 top-up'
+        },
+        {
+          id: 'ref_104', vehicleId: vActiva.id, date: daysAgo(11), bunk: 'IndianOil',
+          fuelType: 'Petrol', amount: 278.00, rate: 105.70, liters: 2.63,
+          isFullTank: true, odometer: 14036, notes: 'Full tank + air pressure checked'
+        },
+        {
+          id: 'ref_105', vehicleId: vActiva.id, date: daysAgo(5), bunk: 'Jio-bp',
+          fuelType: 'Petrol', amount: 452.00, rate: 105.60, liters: 4.28,
+          isFullTank: true, odometer: 14242, notes: 'NH-66 coastal ride'
+        },
+
+        // Royal Enfield Classic 350 Logs
+        {
+          id: 'ref_201', vehicleId: vClassic.id, date: daysAgo(38), bunk: 'IndianOil',
+          fuelType: 'XP95 / Power Petrol', amount: 1120.00, rate: 112.00, liters: 10.00,
+          isFullTank: true, odometer: 21520, notes: 'XP95 full tank'
+        },
+        {
+          id: 'ref_202', vehicleId: vClassic.id, date: daysAgo(24), bunk: 'Shell',
+          fuelType: 'XP95 / Power Petrol', amount: 1180.00, rate: 114.56, liters: 10.30,
+          isFullTank: true, odometer: 21895, notes: 'V-Power highway cruise'
+        },
+        {
+          id: 'ref_203', vehicleId: vClassic.id, date: daysAgo(12), bunk: 'Bharat Petroleum',
+          fuelType: 'XP95 / Power Petrol', amount: 1095.00, rate: 112.30, liters: 9.75,
+          isFullTank: true, odometer: 22260, notes: 'Weekend hill ride'
+        },
+        {
+          id: 'ref_204', vehicleId: vClassic.id, date: daysAgo(3), bunk: 'IndianOil',
+          fuelType: 'XP95 / Power Petrol', amount: 1045.00, rate: 112.36, liters: 9.30,
+          isFullTank: true, odometer: 22595, notes: 'Smooth throttle response'
+        },
+
+        // Maruti Swift ZXi Logs
+        {
+          id: 'ref_301', vehicleId: vSwift.id, date: daysAgo(35), bunk: 'Nayara Energy',
+          fuelType: 'Petrol', amount: 3100.00, rate: 105.44, liters: 29.40,
+          isFullTank: true, odometer: 40320, notes: 'Family trip full tank'
+        },
+        {
+          id: 'ref_302', vehicleId: vSwift.id, date: daysAgo(21), bunk: 'Bharat Petroleum',
+          fuelType: 'Petrol', amount: 3050.00, rate: 105.54, liters: 28.90,
+          isFullTank: true, odometer: 40865, notes: '80% highway with AC on'
+        },
+        {
+          id: 'ref_303', vehicleId: vSwift.id, date: daysAgo(9), bunk: 'Hindustan Petroleum',
+          fuelType: 'Petrol', amount: 2980.00, rate: 105.67, liters: 28.20,
+          isFullTank: true, odometer: 41375, notes: 'City + bypass traffic'
+        },
+        {
+          id: 'ref_304', vehicleId: vSwift.id, date: daysAgo(2), bunk: 'IndianOil',
+          fuelType: 'Petrol', amount: 2640.00, rate: 105.60, liters: 25.00,
+          isFullTank: true, odometer: 41830, notes: 'Auto cut-off fill'
+        }
+      ];
+
+      const trips = [
+        { id: 'trp_1', vehicleId: vActiva.id, date: daysAgo(2), distance: 18.4, mode: 'GPS', note: 'Kollam Beach to Chinnakada loop' },
+        { id: 'trp_2', vehicleId: vActiva.id, date: daysAgo(1), distance: 12.6, mode: 'Manual', note: 'Evening market & clinic visit' }
+      ];
+
+      return {
+        vehicles: [vActiva, vClassic, vSwift],
+        refuels,
+        trips,
+        activeVehicleId: vActiva.id,
+        theme: 'light',
+        chartMode: 'mileage',
+        lastNotifiedKey: ''
+      };
+    }
+
+    // =========================================================================
+    // 2. OFFLINE STORAGE & STATE PERSISTENCE
+    // =========================================================================
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && Array.isArray(parsed.vehicles)) {
+            appState = {
+              vehicles: parsed.vehicles,
+              refuels: Array.isArray(parsed.refuels) ? parsed.refuels : [],
+              trips: Array.isArray(parsed.trips) ? parsed.trips : [],
+              activeVehicleId: parsed.activeVehicleId || (parsed.vehicles[0]?.id ?? null),
+              theme: parsed.theme || 'light',
+              chartMode: parsed.chartMode || 'mileage',
+              lastNotifiedKey: parsed.lastNotifiedKey || ''
+            };
+            return;
+          }
+        }
+      } catch (err) {
+        console.error('Failed to read localStorage:', err);
+      }
+      // First-time launch: seed with realistic Indian data
+      appState = createIndianSampleData();
+      saveState();
+    }
+
+    function saveState() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+      } catch (err) {
+        console.error('Failed to save to localStorage:', err);
+        showToast('Storage warning: Could not persist data locally.', 'error');
+      }
+    }
+
+    function getActiveVehicle() {
+      if (!appState.vehicles.length) return null;
+      let v = appState.vehicles.find(item => item.id === appState.activeVehicleId);
+      if (!v) {
+        v = appState.vehicles[0];
+        appState.activeVehicleId = v.id;
+      }
+      return v;
+    }
+
+    // =========================================================================
+    // 3. MILEAGE, ANALYTICS & SMART FUEL PREDICTION ENGINE
+    // =========================================================================
+    function computeVehicleAnalytics(vehicle) {
+      if (!vehicle) return null;
+
+      // Sort vehicle's refuels chronologically by odometer (then date)
+      const logs = appState.refuels
+        .filter(r => r.vehicleId === vehicle.id)
+        .map(r => ({ ...r }))
+        .sort((a, b) => (a.odometer - b.odometer) || a.date.localeCompare(b.date));
+
+      let totalSpent = 0;
+      let totalLiters = 0;
+      logs.forEach(l => {
+        totalSpent += Number(l.amount) || 0;
+        totalLiters += Number(l.liters) || 0;
+      });
+
+      // Tank-to-Tank Mileage Calculation between consecutive Full Tank logs
+      const fullIndices = [];
+      logs.forEach((l, idx) => {
+        if (l.isFullTank) fullIndices.push(idx);
+      });
+
+      let t2tDistance = 0;
+      let t2tFuel = 0;
+      const mileagePoints = [];
+
+      for (let i = 1; i < fullIndices.length; i++) {
+        const prevIdx = fullIndices[i - 1];
+        const currIdx = fullIndices[i];
+        const dist = logs[currIdx].odometer - logs[prevIdx].odometer;
+
+        // Sum all liters added after prevIdx up to and including currIdx
+        let segmentFuel = 0;
+        for (let k = prevIdx + 1; k <= currIdx; k++) {
+          segmentFuel += Number(logs[k].liters) || 0;
+        }
+
+        if (dist > 0 && segmentFuel > 0) {
+          const kmpl = dist / segmentFuel;
+          logs[currIdx].calculatedMileage = kmpl;
+          logs[currIdx].segmentDistance = dist;
+          t2tDistance += dist;
+          t2tFuel += segmentFuel;
+          mileagePoints.push({
+            date: logs[currIdx].date,
+            bunk: logs[currIdx].bunk,
+            kmpl: kmpl,
+            distance: dist
+          });
+        }
+      }
+
+      // Baseline fallback mileage by Indian vehicle category
+      const fallbackBaseline = vehicle.type === 'Scooter' ? 46.0 : (vehicle.type === 'Bike' ? 40.0 : 17.5);
+
+      let avgMileage = fallbackBaseline;
+      let isEstimatedMileage = true;
+
+      if (t2tDistance > 0 && t2tFuel > 0) {
+        avgMileage = t2tDistance / t2tFuel;
+        isEstimatedMileage = false;
+      } else if (logs.length >= 2) {
+        const spanDist = logs[logs.length - 1].odometer - logs[0].odometer;
+        let spanFuel = 0;
+        for (let k = 1; k < logs.length; k++) spanFuel += Number(logs[k].liters) || 0;
+        if (spanDist > 0 && spanFuel > 0) {
+          avgMileage = spanDist / spanFuel;
+          isEstimatedMileage = false;
+        }
+      }
+
+      const lastTankMileage = mileagePoints.length ? mileagePoints[mileagePoints.length - 1].kmpl : null;
+
+      // Tracked distance & running cost per km
+      const firstOdo = logs.length ? logs[0].odometer : vehicle.currentOdometer;
+      const latestOdo = Math.max(vehicle.currentOdometer, logs.length ? logs[logs.length - 1].odometer : 0);
+      const totalTrackedDist = Math.max(0, latestOdo - firstOdo);
+
+      const avgFuelRate = totalLiters > 0 ? (totalSpent / totalLiters) : (DEFAULT_FUEL_RATES[vehicle.fuelType] || 105.6);
+      const costPerKm = avgMileage > 0 ? (avgFuelRate / avgMileage) : 0;
+
+      // Smart Fuel Remaining & Range Prediction
+      const lastRefuel = logs.length ? logs[logs.length - 1] : null;
+      const distanceSinceLastFill = lastRefuel ? Math.max(0, latestOdo - lastRefuel.odometer) : 0;
+
+      let fuelAtLastFill = vehicle.tankCapacity * 0.6;
+      if (lastRefuel) {
+        if (lastRefuel.isFullTank) {
+          fuelAtLastFill = vehicle.tankCapacity;
+        } else {
+          // Estimate fuel after partial top-up
+          fuelAtLastFill = Math.min(vehicle.tankCapacity, (Number(lastRefuel.liters) || 0) + (vehicle.lowFuelThreshold || 1.2));
+        }
+      }
+
+      const fuelUsedSinceFill = avgMileage > 0 ? (distanceSinceLastFill / avgMileage) : 0;
+      const estFuelRemaining = Math.max(0, Math.min(vehicle.tankCapacity, fuelAtLastFill - fuelUsedSinceFill));
+      const estRangeKm = Math.max(0, Math.round(estFuelRemaining * avgMileage));
+
+      const rangeThresh = Number(vehicle.lowRangeThreshold) || 40;
+      const fuelThresh = Number(vehicle.lowFuelThreshold) || 1.2;
+
+      let status = 'safe'; // 'safe' | 'warning' | 'critical'
+      if (estRangeKm <= rangeThresh || estFuelRemaining <= fuelThresh) {
+        status = 'critical';
+      } else if (estRangeKm <= rangeThresh * 1.5 || estFuelRemaining <= fuelThresh * 1.45) {
+        status = 'warning';
+      }
+
+      return {
+        logs,
+        totalSpent,
+        totalLiters,
+        totalTrackedDist,
+        avgMileage,
+        isEstimatedMileage,
+        lastTankMileage,
+        avgFuelRate,
+        costPerKm,
+        lastRefuel,
+        distanceSinceLastFill,
+        estFuelRemaining,
+        estRangeKm,
+        status,
+        mileagePoints
+      };
+    }
+
+    // =========================================================================
+    // 4. NOTIFICATIONS, WEB AUDIO CHIME & SMART ALERTS
+    // =========================================================================
+    function playAlertChime() {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const now = ctx.currentTime;
+
+        [587.33, 880].forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now + i * 0.14);
+          gain.gain.setValueAtTime(0.08, now + i * 0.14);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.14 + 0.28);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + i * 0.14);
+          osc.stop(now + i * 0.14 + 0.3);
+        });
+      } catch (e) {
+        // Ignore audio autoplay block if user hasn't interacted yet
+      }
+    }
+
+    function updateNotificationStatusUI() {
+      const statusEl = document.getElementById('notifPermissionStatus');
+      const btnEl = document.getElementById('btnEnableNotifs');
+      if (!('Notification' in window)) {
+        statusEl.textContent = 'In-app visual & audio alerts active';
+        btnEl.textContent = 'Supported In-App';
+        btnEl.disabled = true;
+        btnEl.classList.add('opacity-60');
+        return;
+      }
+      if (Notification.permission === 'granted') {
+        statusEl.textContent = 'Push alerts enabled on this device ✓';
+        statusEl.className = 'text-[11px] font-semibold text-emerald-600 dark:text-emerald-400';
+        btnEl.textContent = 'Alerts Active ✓';
+        btnEl.className = 'px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 text-white shadow-sm';
+      } else if (Notification.permission === 'denied') {
+        statusEl.textContent = 'Browser blocked push — in-app banners active';
+        btnEl.textContent = 'Blocked in Browser';
+      } else {
+        statusEl.textContent = 'Tap to get low-fuel push notifications';
+        btnEl.textContent = 'Enable Fuel Alerts';
+      }
+    }
+
+    async function requestBrowserNotifications() {
+      if (!('Notification' in window)) {
+        showToast('Your browser does not support system push notifications. In-app alerts are active!', 'info');
+        return;
+      }
+      try {
+        const permission = await Notification.requestPermission();
+        updateNotificationStatusUI();
+        if (permission === 'granted') {
+          showToast('Fuel alerts enabled! You will be notified before reserve.', 'success');
+          new Notification('IndhanLog Alerts Enabled', {
+            body: 'We will notify you when your remaining range drops below your set threshold.'
+          });
+        } else {
+          showToast('Push permission not granted. In-app banners will still alert you.', 'warning');
+        }
+      } catch (err) {
+        showToast('Could not request notification permission.', 'error');
+      }
+    }
+
+    function triggerFuelThresholdCheck(vehicle, analytics, forceNotify = false) {
+      if (!vehicle || !analytics) return;
+      if (analytics.status === 'critical' || forceNotify) {
+        const unit = vehicle.fuelType === 'CNG' ? 'kg' : 'L';
+        const title = `Refill Needed: ${vehicle.name}`;
+        const body = `Est. range is ${analytics.estRangeKm} km (~${analytics.estFuelRemaining.toFixed(1)} ${unit} left). Visit a nearby petrol bunk soon.`;
+
+        const notifyKey = `${vehicle.id}_${analytics.estRangeKm}`;
+        if (forceNotify || appState.lastNotifiedKey !== notifyKey) {
+          appState.lastNotifiedKey = notifyKey;
+          saveState();
+          playAlertChime();
+          showToast(body, 'warning');
+
+          if ('Notification' in window && Notification.permission === 'granted') {
+            try {
+              new Notification(title, { body });
+            } catch (e) { /* fallback handled by toast + banner */ }
+          }
+        }
+      }
+    }
+
+    // =========================================================================
+    // 5. LIVE GPS TRIP TRACKER (GEOLOCATION + HAVERSINE)
+    // =========================================================================
+    function haversineDistanceKm(lat1, lon1, lat2, lon2) {
+      const toRad = (deg) => (deg * Math.PI) / 180;
+      const R = 6371; // Earth radius in km
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    }
+
+    function formatDuration(totalSec) {
+      const hrs = Math.floor(totalSec / 3600);
+      const mins = Math.floor((totalSec % 3600) / 60);
+      const secs = totalSec % 60;
+      return [hrs, mins, secs].map(v => String(v).padStart(2, '0')).join(':');
+    }
+
+    function updateGpsUI() {
+      document.getElementById('gpsDistanceDisplay').textContent = gpsState.distanceKm.toFixed(2);
+      document.getElementById('gpsSpeedDisplay').textContent = gpsState.currentSpeedKmh.toFixed(1);
+      const avgSpd = gpsState.elapsedSeconds > 0
+        ? (gpsState.distanceKm / (gpsState.elapsedSeconds / 3600))
+        : 0;
+      document.getElementById('gpsAvgSpeedDisplay').textContent = avgSpd.toFixed(1);
+      document.getElementById('gpsDurationDisplay').textContent = formatDuration(gpsState.elapsedSeconds);
+
+      const startBtn = document.getElementById('btnGpsStartPause');
+      const startLabel = document.getElementById('btnGpsStartLabel');
+      const statusBadge = document.getElementById('gpsStatusBadge');
+      const statusDot = document.getElementById('gpsStatusDot');
+      const statusText = document.getElementById('gpsStatusText');
+
+      if (gpsState.isTracking) {
+        startBtn.className = 'py-3.5 px-4 rounded-2xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-sm shadow-sm flex items-center justify-center gap-2 transition active:scale-95';
+        startLabel.textContent = 'Pause Ride';
+        statusBadge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300';
+        statusDot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-ping';
+        statusText.textContent = 'GPS Active';
+      } else {
+        startBtn.className = 'py-3.5 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm shadow-sm flex items-center justify-center gap-2 transition active:scale-95';
+        startLabel.textContent = gpsState.distanceKm > 0 ? 'Resume Ride' : 'Start GPS Ride';
+        statusBadge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300';
+        statusDot.className = 'w-2 h-2 rounded-full bg-slate-400';
+        statusText.textContent = gpsState.distanceKm > 0 ? 'Paused' : 'Standby';
+      }
+
+      drawGpsBreadcrumbCanvas();
+    }
+
+    function drawGpsBreadcrumbCanvas() {
+      const canvas = document.getElementById('gpsRouteCanvas');
+      if (!canvas) return;
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width === 0) return;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+
+      const ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+      const w = rect.width;
+      const h = rect.height;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Draw subtle telemetry grid
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.12)';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < w; x += 24) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+      }
+      for (let y = 0; y < h; y += 24) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+      }
+
+      const pts = gpsState.pathPoints;
+      if (pts.length < 2) {
+        ctx.fillStyle = '#64748b';
+        ctx.font = '600 11px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('GPS route trail will appear here as you ride', w / 2, h / 2 + 4);
+        return;
+      }
+
+      let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
+      pts.forEach(p => {
+        if (p.lat < minLat) minLat = p.lat;
+        if (p.lat > maxLat) maxLat = p.lat;
+        if (p.lng < minLng) minLng = p.lng;
+        if (p.lng > maxLng) maxLng = p.lng;
+      });
+
+      const pad = 16;
+      const spanLat = Math.max(0.0005, maxLat - minLat);
+      const spanLng = Math.max(0.0005, maxLng - minLng);
+
+      const mapX = (lng) => pad + ((lng - minLng) / spanLng) * (w - pad * 2);
+      const mapY = (lat) => h - pad - ((lat - minLat) / spanLat) * (h - pad * 2);
+
+      ctx.strokeStyle = '#f97316';
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      pts.forEach((p, idx) => {
+        const x = mapX(p.lng);
+        const y = mapY(p.lat);
+        if (idx === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+
+      // Current position beacon
+      const last = pts[pts.length - 1];
+      ctx.fillStyle = '#22c55e';
+      ctx.beginPath();
+      ctx.arc(mapX(last.lng), mapY(last.lat), 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function toggleGpsTracking() {
+      if (gpsState.isTracking) {
+        pauseGpsTracking();
+        return;
+      }
+
+      if (!('geolocation' in navigator)) {
+        showToast('Geolocation not supported. Use Simulate Ride or Manual Entry.', 'warning');
+        return;
+      }
+
+      gpsState.isTracking = true;
+      gpsState.timerInterval = setInterval(() => {
+        gpsState.elapsedSeconds += 1;
+        updateGpsUI();
+      }, 1000);
+
+      gpsState.watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          const { latitude, longitude, speed } = pos.coords;
+          const now = Date.now();
+
+          if (gpsState.lastCoords) {
+            const deltaKm = haversineDistanceKm(
+              gpsState.lastCoords.lat,
+              gpsState.lastCoords.lng,
+              latitude,
+              longitude
+            );
+            const dtHours = Math.max(0.0002, (now - gpsState.lastCoords.time) / 3600000);
+            const derivedSpeed = deltaKm / dtHours;
+
+            // Filter stationary GPS jitter (< 5 meters) and unrealistic spikes (> 200 km/h)
+            if (deltaKm >= 0.005 && derivedSpeed <= 200) {
+              gpsState.distanceKm += deltaKm;
+              gpsState.pathPoints.push({ lat: latitude, lng: longitude });
+              if (gpsState.pathPoints.length > 200) gpsState.pathPoints.shift();
+            }
+            gpsState.currentSpeedKmh = speed !== null && speed >= 0 ? speed * 3.6 : Math.min(180, derivedSpeed);
+          } else {
+            gpsState.pathPoints.push({ lat: latitude, lng: longitude });
+          }
+
+          gpsState.lastCoords = { lat: latitude, lng: longitude, time: now };
+          updateGpsUI();
+        },
+        (err) => {
+          pauseGpsTracking();
+          showToast('GPS signal unavailable (check location permissions). Try Simulate Ride (+15 km).', 'warning');
+        },
+        { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 }
+      );
+
+      updateGpsUI();
+      showToast('Live GPS tracking started!', 'success');
+    }
+
+    function pauseGpsTracking() {
+      gpsState.isTracking = false;
+      if (gpsState.watchId !== null) {
+        navigator.geolocation.clearWatch(gpsState.watchId);
+        gpsState.watchId = null;
+      }
+      if (gpsState.timerInterval) {
+        clearInterval(gpsState.timerInterval);
+        gpsState.timerInterval = null;
+      }
+      gpsState.currentSpeedKmh = 0;
+      gpsState.lastCoords = null;
+      updateGpsUI();
+    }
+
+    function addSimulatedGpsChunk(km) {
+      gpsState.distanceKm = Number((gpsState.distanceKm + km).toFixed(2));
+      gpsState.elapsedSeconds += Math.round((km / 38) * 3600);
+      gpsState.currentSpeedKmh = 42.5;
+
+      // Add synthetic Kerala coastal road coordinates for visual trail
+      const baseLat = 8.8932 + gpsState.pathPoints.length * 0.004;
+      const baseLng = 76.6141 + Math.sin(gpsState.pathPoints.length * 0.6) * 0.005;
+      if (gpsState.pathPoints.length === 0) {
+        gpsState.pathPoints.push({ lat: 8.8890, lng: 76.6100 });
+      }
+      gpsState.pathPoints.push({ lat: baseLat, lng: baseLng });
+      updateGpsUI();
+      showToast(`Simulated +${km} km added to live trip meter!`, 'info');
+    }
+
+    function simulateRideDistance(km) {
+      const vehicle = getActiveVehicle();
+      if (!vehicle) return;
+      vehicle.currentOdometer = Number((vehicle.currentOdometer + km).toFixed(1));
+      appState.trips.unshift({
+        id: 'trp_' + Date.now(),
+        vehicleId: vehicle.id,
+        date: new Date().toISOString().split('T')[0],
+        distance: km,
+        mode: 'Simulated GPS',
+        note: 'Quick test ride simulation'
+      });
+      saveState();
+      renderAll();
+      const analytics = computeVehicleAnalytics(vehicle);
+      triggerFuelThresholdCheck(vehicle, analytics);
+      showToast(`Added +${km} km to ${vehicle.name} (Odo: ${vehicle.currentOdometer.toLocaleString('en-IN')} km)`, 'success');
+    }
+
+    function saveGpsRideToVehicle() {
+      const vehicle = getActiveVehicle();
+      if (!vehicle) return;
+      if (gpsState.distanceKm < 0.1) {
+        showToast('Record at least 0.1 km before saving to tank.', 'warning');
+        return;
+      }
+      pauseGpsTracking();
+      const dist = Number(gpsState.distanceKm.toFixed(2));
+      vehicle.currentOdometer = Number((vehicle.currentOdometer + dist).toFixed(1));
+      appState.trips.unshift({
+        id: 'trp_' + Date.now(),
+        vehicleId: vehicle.id,
+        date: new Date().toISOString().split('T')[0],
+        distance: dist,
+        mode: 'Live GPS',
+        note: `GPS tracked ride (${formatDuration(gpsState.elapsedSeconds)})`
+      });
+
+      gpsState.distanceKm = 0;
+      gpsState.elapsedSeconds = 0;
+      gpsState.pathPoints = [];
+      saveState();
+      updateGpsUI();
+      renderAll();
+
+      const analytics = computeVehicleAnalytics(vehicle);
+      triggerFuelThresholdCheck(vehicle, analytics);
+      showToast(`Saved ${dist} km GPS trip to ${vehicle.name}!`, 'success');
+    }
+
+    function confirmResetGps() {
+      if (gpsState.distanceKm === 0 && gpsState.elapsedSeconds === 0) return;
+      openConfirmModal(
+        'Reset Trip Meter?',
+        'This will clear the current unsaved GPS trip distance and timer.',
+        () => {
+          pauseGpsTracking();
+          gpsState.distanceKm = 0;
+          gpsState.elapsedSeconds = 0;
+          gpsState.pathPoints = [];
+          updateGpsUI();
+          showToast('Trip meter reset.', 'info');
+        }
+      );
+    }
+
+    // Manual Odometer / Trip Mode Handlers
+    function setManualEntryMode(mode) {
+      manualEntryMode = mode;
+      const odoBtn = document.getElementById('manualModeOdoBtn');
+      const tripBtn = document.getElementById('manualModeTripBtn');
+      const label = document.getElementById('manualDistanceLabel');
+      const input = document.getElementById('manualDistanceInput');
+      const vehicle = getActiveVehicle();
+
+      if (mode === 'odometer') {
+        odoBtn.className = 'py-2 rounded-lg text-xs font-bold bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm transition';
+        tripBtn.className = 'py-2 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-400 transition';
+        label.textContent = 'New Odometer Reading (km)';
+        input.placeholder = vehicle ? `e.g. ${Math.round(vehicle.currentOdometer + 25)}` : 'e.g. 14500';
+      } else {
+        tripBtn.className = 'py-2 rounded-lg text-xs font-bold bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm transition';
+        odoBtn.className = 'py-2 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-400 transition';
+        label.textContent = 'Trip Distance Travelled (+km)';
+        input.placeholder = 'e.g. 24.5';
+      }
+      input.value = '';
+      document.getElementById('manualCalculatedPreview').textContent = '';
+    }
+
+    function updateManualDistancePreview() {
+      const vehicle = getActiveVehicle();
+      const val = parseFloat(document.getElementById('manualDistanceInput').value);
+      const preview = document.getElementById('manualCalculatedPreview');
+      if (!vehicle || isNaN(val) || val <= 0) {
+        preview.textContent = '';
+        return;
+      }
+      if (manualEntryMode === 'odometer') {
+        const diff = val - vehicle.currentOdometer;
+        if (diff <= 0) {
+          preview.className = 'text-xs font-semibold text-rose-600 dark:text-rose-400 mt-1 tabular-nums';
+          preview.textContent = `Must be greater than current odometer (${vehicle.currentOdometer} km)`;
+        } else {
+          preview.className = 'text-xs font-semibold text-emerald-600 dark:text-emerald-400 mt-1 tabular-nums';
+          preview.textContent = `+${diff.toFixed(1)} km will be added to trip distance`;
+        }
+      } else {
+        const newOdo = vehicle.currentOdometer + val;
+        preview.className = 'text-xs font-semibold text-emerald-600 dark:text-emerald-400 mt-1 tabular-nums';
+        preview.textContent = `New odometer will be ${newOdo.toLocaleString('en-IN')} km`;
+      }
+    }
+
+    function handleManualRideSubmit(e) {
+      e.preventDefault();
+      const vehicle = getActiveVehicle();
+      if (!vehicle) return;
+      const val = parseFloat(document.getElementById('manualDistanceInput').value);
+      const note = document.getElementById('manualRideNote').value.trim();
+
+      if (isNaN(val) || val <= 0) {
+        showToast('Please enter a valid positive distance.', 'error');
+        return;
+      }
+
+      let tripDist = 0;
+      if (manualEntryMode === 'odometer') {
+        if (val <= vehicle.currentOdometer) {
+          showToast(`New odometer must exceed ${vehicle.currentOdometer} km.`, 'error');
+          return;
+        }
+        tripDist = Number((val - vehicle.currentOdometer).toFixed(1));
+        vehicle.currentOdometer = Number(val.toFixed(1));
+      } else {
+        tripDist = Number(val.toFixed(1));
+        vehicle.currentOdometer = Number((vehicle.currentOdometer + tripDist).toFixed(1));
+      }
+
+      appState.trips.unshift({
+        id: 'trp_' + Date.now(),
+        vehicleId: vehicle.id,
+        date: new Date().toISOString().split('T')[0],
+        distance: tripDist,
+        mode: 'Manual',
+        note: note || 'Manual odometer log'
+      });
+
+      document.getElementById('manualDistanceInput').value = '';
+      document.getElementById('manualRideNote').value = '';
+      document.getElementById('manualCalculatedPreview').textContent = '';
+
+      saveState();
+      renderAll();
+      const analytics = computeVehicleAnalytics(vehicle);
+      triggerFuelThresholdCheck(vehicle, analytics);
+      showToast(`Logged +${tripDist} km for ${vehicle.name}!`, 'success');
+    }
+
+    // =========================================================================
+    // 6. INDIAN FUEL REFILLING FORM (TWO-WAY CALC & BUNK LOGGING)
+    // =========================================================================
+    function renderBunkBrandGrid() {
+      const grid = document.getElementById('bunkBrandGrid');
+      grid.innerHTML = BUNK_BRANDS.map(b => {
+        const isSelected = selectedBunkBrand === b.id;
+        return `
+          <button type="button" onclick="selectBunkBrand('${b.id}')"
+            class="py-2.5 px-2 rounded-2xl border-2 text-xs font-extrabold transition flex flex-col items-center justify-center gap-0.5 ${
+              isSelected
+                ? 'border-orange-600 bg-orange-50 dark:bg-orange-950/60 text-orange-900 dark:text-orange-200 shadow-xs'
+                : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300'
+            }">
+            <span>${b.label}</span>
+          </button>
+        `;
+      }).join('');
+    }
+
+    function selectBunkBrand(brandId) {
+      selectedBunkBrand = brandId;
+      renderBunkBrandGrid();
+    }
+
+    function setFillMode(isFull) {
+      isFullTankMode = isFull;
+      const btnFull = document.getElementById('btnFillFull');
+      const btnPart = document.getElementById('btnFillPartial');
+
+      if (isFull) {
+        btnFull.className = 'p-3 rounded-2xl border-2 border-emerald-600 bg-emerald-50 dark:bg-emerald-950/50 text-left transition';
+        btnFull.querySelector('span:last-child').className = 'w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px]';
+        btnFull.querySelector('span:last-child').textContent = '✓';
+
+        btnPart.className = 'p-3 rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-left transition';
+        btnPart.querySelector('span:last-child').className = 'w-4 h-4 rounded-full border border-slate-300 dark:border-slate-600';
+        btnPart.querySelector('span:last-child').textContent = '';
+      } else {
+        btnPart.className = 'p-3 rounded-2xl border-2 border-amber-500 bg-amber-50 dark:bg-amber-950/50 text-left transition';
+        btnPart.querySelector('span:last-child').className = 'w-4 h-4 rounded-full bg-amber-500 text-white flex items-center justify-center text-[10px]';
+        btnPart.querySelector('span:last-child').textContent = '✓';
+
+        btnFull.className = 'p-3 rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-left transition';
+        btnFull.querySelector('span:last-child').className = 'w-4 h-4 rounded-full border border-slate-300 dark:border-slate-600';
+        btnFull.querySelector('span:last-child').textContent = '';
+      }
+      updateFuelOdoPreview();
+    }
+
+    function applyQuickRupees(inr) {
+      const amountEl = document.getElementById('fuelAmountInput');
+      const rateEl = document.getElementById('fuelRateInput');
+      const litersEl = document.getElementById('fuelLitersInput');
+
+      amountEl.value = inr;
+      const rate = parseFloat(rateEl.value);
+      if (rate > 0) {
+        litersEl.value = (inr / rate).toFixed(2);
+      }
+      updateFuelOdoPreview();
+    }
+
+    function setupTwoWayFuelCalculator() {
+      const amountEl = document.getElementById('fuelAmountInput');
+      const rateEl = document.getElementById('fuelRateInput');
+      const litersEl = document.getElementById('fuelLitersInput');
+      const odoEl = document.getElementById('fuelOdometerInput');
+
+      amountEl.addEventListener('input', () => {
+        const amt = parseFloat(amountEl.value);
+        const rate = parseFloat(rateEl.value);
+        if (amt > 0 && rate > 0) {
+          litersEl.value = (amt / rate).toFixed(2);
+        }
+        updateFuelOdoPreview();
+      });
+
+      rateEl.addEventListener('input', () => {
+        const amt = parseFloat(amountEl.value);
+        const rate = parseFloat(rateEl.value);
+        const liters = parseFloat(litersEl.value);
+        if (amt > 0 && rate > 0) {
+          litersEl.value = (amt / rate).toFixed(2);
+        } else if (liters > 0 && rate > 0) {
+          amountEl.value = (liters * rate).toFixed(2);
+        }
+        updateFuelOdoPreview();
+      });
+
+      litersEl.addEventListener('input', () => {
+        const liters = parseFloat(litersEl.value);
+        const rate = parseFloat(rateEl.value);
+        if (liters > 0 && rate > 0) {
+          amountEl.value = (liters * rate).toFixed(2);
+        }
+        updateFuelOdoPreview();
+      });
+
+      odoEl.addEventListener('input', updateFuelOdoPreview);
+    }
+
+    function updateFuelOdoPreview() {
+      const vehicle = getActiveVehicle();
+      const infoEl = document.getElementById('fuelOdoDeltaInfo');
+      if (!vehicle) return;
+
+      const newOdo = parseFloat(document.getElementById('fuelOdometerInput').value);
+      const liters = parseFloat(document.getElementById('fuelLitersInput').value);
+
+      if (isNaN(newOdo)) {
+        infoEl.textContent = '';
+        return;
+      }
+
+      const analytics = computeVehicleAnalytics(vehicle);
+      const prevRefuelOdo = analytics.lastRefuel ? analytics.lastRefuel.odometer : vehicle.currentOdometer;
+      const dist = newOdo - prevRefuelOdo;
+
+      if (dist > 0) {
+        let msg = `+${dist.toFixed(1)} km since last refill`;
+        if (isFullTankMode && liters > 0) {
+          const estKmpl = dist / liters;
+          msg += ` • Est. mileage: ${estKmpl.toFixed(1)} km/l`;
+        }
+        infoEl.className = 'text-xs font-semibold text-emerald-600 dark:text-emerald-400 mt-1 tabular-nums';
+        infoEl.textContent = msg;
+      } else if (dist < 0) {
+        infoEl.className = 'text-xs font-semibold text-rose-600 dark:text-rose-400 mt-1 tabular-nums';
+        infoEl.textContent = `Odometer is lower than previous fill (${prevRefuelOdo} km)`;
+      } else {
+        infoEl.textContent = '';
+      }
+    }
+
+    function appendFuelNoteTag(tag) {
+      const input = document.getElementById('fuelNotesInput');
+      const current = input.value.trim();
+      if (!current) {
+        input.value = tag;
+      } else if (!current.toLowerCase().includes(tag.toLowerCase())) {
+        input.value = `${current}, ${tag}`;
+      }
+    }
+
+    function prepareFuelFormForVehicle() {
+      const vehicle = getActiveVehicle();
+      if (!vehicle) return;
+
+      document.getElementById('fuelFormVehiclePill').textContent = `${vehicle.name} (${vehicle.regNumber})`;
+      document.getElementById('fuelDateInput').value = new Date().toISOString().split('T')[0];
+      document.getElementById('fuelTypeSelect').value = vehicle.fuelType || 'Petrol';
+
+      const analytics = computeVehicleAnalytics(vehicle);
+      const latestRate = analytics.lastRefuel ? analytics.lastRefuel.rate : (DEFAULT_FUEL_RATES[vehicle.fuelType] || 105.60);
+      document.getElementById('fuelRateInput').value = latestRate.toFixed(2);
+      document.getElementById('fuelPrevOdoDisplay').textContent = `${vehicle.currentOdometer.toLocaleString('en-IN')} km`;
+      document.getElementById('fuelOdometerInput').value = vehicle.currentOdometer;
+      document.getElementById('fuelAmountInput').value = '';
+      document.getElementById('fuelLitersInput').value = '';
+      document.getElementById('fuelNotesInput').value = '';
+      updateFuelOdoPreview();
+    }
+
+    function handleFuelFormSubmit(e) {
+      e.preventDefault();
+      const vehicle = getActiveVehicle();
+      if (!vehicle) return;
+
+      const date = document.getElementById('fuelDateInput').value;
+      const fuelType = document.getElementById('fuelTypeSelect').value;
+      const amount = parseFloat(document.getElementById('fuelAmountInput').value);
+      const rate = parseFloat(document.getElementById('fuelRateInput').value);
+      const liters = parseFloat(document.getElementById('fuelLitersInput').value);
+      const odometer = parseFloat(document.getElementById('fuelOdometerInput').value);
+      const notes = document.getElementById('fuelNotesInput').value.trim();
+
+      if (isNaN(amount) || amount <= 0 || isNaN(rate) || rate <= 0 || isNaN(liters) || liters <= 0) {
+        showToast('Please enter valid Rupee amount, rate, and liters.', 'error');
+        return;
+      }
+      if (isNaN(odometer) || odometer < 0) {
+        showToast('Please enter a valid odometer reading.', 'error');
+        return;
+      }
+
+      const newLog = {
+        id: 'ref_' + Date.now(),
+        vehicleId: vehicle.id,
+        date,
+        bunk: selectedBunkBrand,
+        fuelType,
+        amount: Number(amount.toFixed(2)),
+        rate: Number(rate.toFixed(2)),
+        liters: Number(liters.toFixed(3)),
+        isFullTank: isFullTankMode,
+        odometer: Number(odometer.toFixed(1)),
+        notes
+      };
+
+      appState.refuels.push(newLog);
+      if (odometer > vehicle.currentOdometer) {
+        vehicle.currentOdometer = Number(odometer.toFixed(1));
+      }
+
+      saveState();
+      renderAll();
+      switchTab('dashboard');
+      showToast(`Saved ₹${amount.toFixed(0)} (${liters.toFixed(2)} L) at ${selectedBunkBrand}!`, 'success');
+    }
+
+    // =========================================================================
+    // 7. INTERACTIVE SVG CHARTS (MILEAGE TREND & BUNK SPEND)
+    // =========================================================================
+    function setChartMode(mode) {
+      appState.chartMode = mode;
+      saveState();
+   

@@ -1,0 +1,18 @@
+{
+  "name": "IndhanLog - Fuel & Mileage Tracker",
+  "short_name": "IndhanLog",
+  "description": "Smart fuel refill, GPS distance, and mileage tracker for Indian riders.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#f97316",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "./icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
